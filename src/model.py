@@ -1,9 +1,21 @@
 """Model loading and LoRA setup for Llama 3.2."""
 
+import os
 import torch
 from typing import Optional, Dict, Any
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from peft import LoraConfig, get_peft_model, PeftModel
+from huggingface_hub import login as hf_login
+
+
+def setup_hf_auth() -> None:
+    """Setup HuggingFace authentication from environment."""
+    token = os.environ.get("HF_TOKEN")
+    if token:
+        hf_login(token=token, add_to_git_credential=False)
+        print("HuggingFace: Authenticated via HF_TOKEN")
+    else:
+        print("HuggingFace: No HF_TOKEN found, using cached credentials")
 
 
 def print_gpu_info() -> None:
@@ -55,6 +67,9 @@ def load_base_model(
     """
     # Print GPU info
     print_gpu_info()
+
+    # Setup HuggingFace auth
+    setup_hf_auth()
 
     torch_dtype = getattr(torch, dtype)
     print(f"Loading model: {model_name}")
