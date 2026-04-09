@@ -33,6 +33,8 @@ def load_natural_questions(
 ) -> Dataset:
     """Load Natural Questions dataset.
 
+    Uses streaming to avoid downloading full dataset (~55GB).
+
     Args:
         split: Dataset split (train, validation)
         num_samples: Optional limit on number of samples
@@ -40,10 +42,15 @@ def load_natural_questions(
     Returns:
         HuggingFace Dataset
     """
-    dataset = load_dataset("natural_questions", "default", split=split)
-
+    # Use streaming to avoid downloading 55GB+ dataset
     if num_samples is not None:
-        dataset = dataset.select(range(min(num_samples, len(dataset))))
+        dataset = load_dataset(
+            "natural_questions", "default",
+            split=f"{split}[:{num_samples}]",
+            trust_remote_code=True
+        )
+    else:
+        dataset = load_dataset("natural_questions", "default", split=split, trust_remote_code=True)
 
     return dataset
 
