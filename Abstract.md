@@ -1,0 +1,7 @@
+# FedLoRA-KD: Privacy-Preserving Federated Adaptation with Universal Teacher Distillation
+
+## Abstract
+
+Fine-tuning large language models for domain-specific applications requires access to proprietary data, raising critical privacy concerns in multi-tenant deployments. We propose FedLoRA-KD, a privacy-preserving framework that combines federated low-rank adaptation with knowledge distillation to enable cross-domain transfer without exposing client data. Each client trains a LoRA adapter locally on private data; the server constructs a Universal Teacher by aggregating client adapters without accessing raw data. For new clients with scarce labeled data, we introduce dual-teacher distillation that simultaneously learns from both the frozen base model and the Universal Teacher—preserving general capabilities while absorbing federated domain knowledge.
+
+We validate our framework across multiple domains, demonstrating that: (1) the Universal Teacher transfers effectively to unseen domains without task-specific tuning; (2) incrementally incorporating new clients improves downstream performance monotonically; and (3) dual-teacher distillation outperforms single-teacher approaches, particularly in low-data regimes. However, we also reveal a fundamental privacy-utility tradeoff: the Universal Teacher exhibits measurable information leakage from contributing clients. We characterize this leakage and discuss implications for privacy-preserving federated fine-tuning of foundation models.
