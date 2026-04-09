@@ -48,6 +48,13 @@ from .attacks import (
 from .client import Client
 from .server import Server
 
+from .kd_trainer import (
+    compute_kd_loss,
+    compute_dual_teacher_loss,
+    train_with_kd,
+    train_with_dual_teacher_kd
+)
+
 __all__ = [
     # Model
     "load_base_model",
@@ -88,4 +95,9 @@ __all__ = [
     # Client/Server
     "Client",
     "Server",
+    # KD Trainer
+    "compute_kd_loss",
+    "compute_dual_teacher_loss",
+    "train_with_kd",
+    "train_with_dual_teacher_kd",
 ]

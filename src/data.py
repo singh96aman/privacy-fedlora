@@ -48,6 +48,53 @@ def load_natural_questions(
     return dataset
 
 
+def load_sciq(
+    split: str = "train",
+    num_samples: Optional[int] = None
+) -> Dataset:
+    """Load SciQ dataset (Science exam questions).
+
+    Args:
+        split: Dataset split (train, validation, test)
+        num_samples: Optional limit on number of samples
+
+    Returns:
+        HuggingFace Dataset
+    """
+    dataset = load_dataset("allenai/sciq", split=split)
+
+    if num_samples is not None:
+        dataset = dataset.select(range(min(num_samples, len(dataset))))
+
+    return dataset
+
+
+def format_sciq_example(example: Dict) -> Dict:
+    """Format a SciQ example for training.
+
+    Args:
+        example: Raw SciQ example
+
+    Returns:
+        Formatted example with prompt and answer
+    """
+    question = example["question"]
+    # SciQ has support text as context
+    context = example.get("support", "")
+    if not context:
+        context = "No additional context provided."
+
+    answer = example["correct_answer"]
+
+    prompt = format_qa_prompt(question, context)
+
+    return {
+        "prompt": prompt,
+        "answer": answer,
+        "full_text": f"{prompt} {answer}"
+    }
+
+
 def format_qa_prompt(question: str, context: str) -> str:
     """Format question and context into instruction prompt.
 
@@ -136,13 +183,20 @@ def preprocess_dataset(
     Args:
         dataset: Raw dataset
         tokenizer: Tokenizer for encoding
-        dataset_type: "squad" or "nq"
+        dataset_type: "squad", "nq", or "sciq"
         max_length: Maximum sequence length
 
     Returns:
         Tokenized dataset
     """
-    format_fn = format_squad_example if dataset_type == "squad" else format_nq_example
+    format_fns = {
+        "squad": format_squad_example,
+        "nq": format_nq_example,
+        "sciq": format_sciq_example
+    }
+    format_fn = format_fns.get(dataset_type)
+    if format_fn is None:
+        raise ValueError(f"Unknown dataset type: {dataset_type}")
 
     def tokenize(example):
         formatted = format_fn(example)
@@ -205,6 +259,10 @@ def get_client_data(
         train_data = load_natural_questions("train", num_samples)
         eval_data = load_natural_questions("validation", min(1000, num_samples // 10))
         dataset_type = "nq"
+    elif dataset_name == "sciq":
+        train_data = load_sciq("train", num_samples)
+        eval_data = load_sciq("validation", min(1000, num_samples // 10))
+        dataset_type = "sciq"
     else:
         raise ValueError(f"Unknown dataset: {dataset_name}")
 

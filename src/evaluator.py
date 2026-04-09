@@ -2,10 +2,12 @@
 
 import re
 import string
-from typing import Dict, List, Tuple
+import math
+from typing import Dict, List, Tuple, Optional
 from collections import Counter
 
 import torch
+import numpy as np
 from tqdm import tqdm
 from transformers import PreTrainedTokenizer
 from peft import PeftModel
@@ -78,6 +80,151 @@ def compute_exact_match(prediction: str, ground_truth: str) -> float:
     return float(normalize_answer(prediction) == normalize_answer(ground_truth))
 
 
+def compute_contains(prediction: str, ground_truth: str) -> float:
+    """Check if ground truth is contained in prediction.
+
+    Args:
+        prediction: Predicted answer
+        ground_truth: Ground truth answer
+
+    Returns:
+        1.0 if ground truth is substring of prediction, 0.0 otherwise
+    """
+    return float(normalize_answer(ground_truth) in normalize_answer(prediction))
+
+
+def compute_bleu(prediction: str, ground_truth: str) -> float:
+    """Compute BLEU score (simplified unigram/bigram).
+
+    Args:
+        prediction: Predicted answer
+        ground_truth: Ground truth answer
+
+    Returns:
+        BLEU score
+    """
+    pred_tokens = normalize_answer(prediction).split()
+    ref_tokens = normalize_answer(ground_truth).split()
+
+    if len(pred_tokens) == 0 or len(ref_tokens) == 0:
+        return 0.0
+
+    # Unigram precision
+    pred_counter = Counter(pred_tokens)
+    ref_counter = Counter(ref_tokens)
+    clipped = sum((pred_counter & ref_counter).values())
+    precision = clipped / len(pred_tokens) if pred_tokens else 0
+
+    # Brevity penalty
+    bp = min(1.0, math.exp(1 - len(ref_tokens) / len(pred_tokens))) if pred_tokens else 0
+
+    return bp * precision
+
+
+def compute_rouge_l(prediction: str, ground_truth: str) -> float:
+    """Compute ROUGE-L score (longest common subsequence).
+
+    Args:
+        prediction: Predicted answer
+        ground_truth: Ground truth answer
+
+    Returns:
+        ROUGE-L F1 score
+    """
+    pred_tokens = normalize_answer(prediction).split()
+    ref_tokens = normalize_answer(ground_truth).split()
+
+    if len(pred_tokens) == 0 or len(ref_tokens) == 0:
+        return 0.0
+
+    # LCS length
+    m, n = len(pred_tokens), len(ref_tokens)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            if pred_tokens[i - 1] == ref_tokens[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1] + 1
+            else:
+                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+
+    lcs_length = dp[m][n]
+
+    if lcs_length == 0:
+        return 0.0
+
+    precision = lcs_length / m
+    recall = lcs_length / n
+    f1 = (2 * precision * recall) / (precision + recall)
+
+    return f1
+
+
+def compute_perplexity(
+    model,
+    tokenizer: PreTrainedTokenizer,
+    text: str,
+    device: str = "cuda"
+) -> float:
+    """Compute perplexity for a given text.
+
+    Args:
+        model: Language model
+        tokenizer: Tokenizer
+        text: Text to compute perplexity for
+        device: Device to use
+
+    Returns:
+        Perplexity value
+    """
+    model.eval()
+    inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+
+    with torch.no_grad():
+        outputs = model(**inputs, labels=inputs["input_ids"])
+        loss = outputs.loss.item()
+
+    return math.exp(loss)
+
+
+def compute_bertscore(
+    predictions: List[str],
+    references: List[str],
+    device: str = "cuda"
+) -> Dict[str, float]:
+    """Compute BERTScore for predictions.
+
+    Args:
+        predictions: List of predicted answers
+        references: List of reference answers
+        device: Device to use
+
+    Returns:
+        Dict with precision, recall, f1
+    """
+    try:
+        from bert_score import score as bert_score
+        P, R, F1 = bert_score(
+            predictions, references,
+            lang="en",
+            device=device,
+            verbose=False
+        )
+        return {
+            "bertscore_precision": P.mean().item(),
+            "bertscore_recall": R.mean().item(),
+            "bertscore_f1": F1.mean().item()
+        }
+    except ImportError:
+        # bert-score not installed, return zeros
+        return {
+            "bertscore_precision": 0.0,
+            "bertscore_recall": 0.0,
+            "bertscore_f1": 0.0
+        }
+
+
 def generate_answer(
     model,
     tokenizer: PreTrainedTokenizer,
@@ -122,7 +269,8 @@ def evaluate_qa(
     model,
     tokenizer: PreTrainedTokenizer,
     eval_examples: List[Dict],
-    max_samples: int = 500
+    max_samples: int = 500,
+    compute_all_metrics: bool = False
 ) -> Dict[str, float]:
     """Evaluate model on QA examples.
 
@@ -131,12 +279,19 @@ def evaluate_qa(
         tokenizer: Tokenizer
         eval_examples: List of {"prompt": str, "answer": str}
         max_samples: Maximum samples to evaluate
+        compute_all_metrics: If True, compute all metrics (slower)
 
     Returns:
-        Dict with f1 and exact_match scores
+        Dict with evaluation metrics
     """
     f1_scores = []
     em_scores = []
+    contains_scores = []
+    bleu_scores = []
+    rouge_scores = []
+    ppl_scores = []
+    predictions = []
+    references = []
 
     samples = eval_examples[:max_samples]
 
@@ -146,17 +301,41 @@ def evaluate_qa(
 
         prediction = generate_answer(model, tokenizer, prompt)
 
-        f1 = compute_f1(prediction, ground_truth)
-        em = compute_exact_match(prediction, ground_truth)
+        # Core metrics
+        f1_scores.append(compute_f1(prediction, ground_truth))
+        em_scores.append(compute_exact_match(prediction, ground_truth))
 
-        f1_scores.append(f1)
-        em_scores.append(em)
+        if compute_all_metrics:
+            contains_scores.append(compute_contains(prediction, ground_truth))
+            bleu_scores.append(compute_bleu(prediction, ground_truth))
+            rouge_scores.append(compute_rouge_l(prediction, ground_truth))
 
-    return {
-        "f1": sum(f1_scores) / len(f1_scores),
-        "exact_match": sum(em_scores) / len(em_scores),
+            # PPL on full response
+            full_text = f"{prompt} {prediction}"
+            ppl_scores.append(compute_perplexity(model, tokenizer, full_text))
+
+            predictions.append(prediction)
+            references.append(ground_truth)
+
+    results = {
+        "f1": np.mean(f1_scores),
+        "exact_match": np.mean(em_scores),
         "num_samples": len(samples)
     }
+
+    if compute_all_metrics:
+        results.update({
+            "contains": np.mean(contains_scores),
+            "bleu": np.mean(bleu_scores),
+            "rouge_l": np.mean(rouge_scores),
+            "perplexity": np.mean(ppl_scores)
+        })
+
+        # BERTScore (batch computation)
+        bertscore_results = compute_bertscore(predictions, references)
+        results.update(bertscore_results)
+
+    return results
 
 
 def get_loss_distribution(

@@ -7,3 +7,4 @@ evaluate>=0.4.0
 scikit-learn>=1.4.0
 numpy>=1.26.0
 tqdm>=4.66.0
+bert-score>=0.3.13
