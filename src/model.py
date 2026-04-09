@@ -6,6 +6,24 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from peft import LoraConfig, get_peft_model, PeftModel
 
 
+def print_gpu_info() -> None:
+    """Print GPU information."""
+    if torch.cuda.is_available():
+        gpu_count = torch.cuda.device_count()
+        print(f"\n{'='*50}")
+        print(f"GPU Connected: Yes")
+        print(f"GPU Count: {gpu_count}")
+        for i in range(gpu_count):
+            gpu_name = torch.cuda.get_device_name(i)
+            gpu_mem = torch.cuda.get_device_properties(i).total_memory / 1e9
+            print(f"  [{i}] {gpu_name} ({gpu_mem:.1f} GB)")
+        print(f"{'='*50}\n")
+    else:
+        print("\n" + "="*50)
+        print("GPU Connected: No (using CPU)")
+        print("="*50 + "\n")
+
+
 def get_default_lora_config() -> Dict[str, Any]:
     """Return default LoRA configuration."""
     return {
@@ -35,7 +53,12 @@ def load_base_model(
     Returns:
         Tuple of (model, tokenizer)
     """
+    # Print GPU info
+    print_gpu_info()
+
     torch_dtype = getattr(torch, dtype)
+    print(f"Loading model: {model_name}")
+    print(f"Dtype: {dtype}")
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     if tokenizer.pad_token is None:
@@ -53,6 +76,8 @@ def load_base_model(
         model.gradient_checkpointing_enable()
 
     model.config.use_cache = False  # Required for gradient checkpointing
+
+    print(f"Model loaded successfully on device: {model.device}")
 
     return model, tokenizer
 
