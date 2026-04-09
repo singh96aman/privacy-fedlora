@@ -77,7 +77,7 @@ def test_config():
     import json
     from pathlib import Path
 
-    config_path = Path("configs/fedlora_squad_nq.json")
+    config_path = Path("configs/fedlora_squad_triviaqa.json")
     print(f"\nConfig file exists: {config_path.exists()}")
 
     if config_path.exists():

@@ -36,10 +36,10 @@ python scripts/smoke_test.py
 
 ```bash
 # Train C1 adapter (SQuAD)
-python scripts/train.py --config configs/fedlora_squad_nq.json --stage c1_adapter
+python scripts/train.py --config configs/fedlora_squad_triviaqa.json --stage c1_adapter
 
-# Train C2 adapter (Natural Questions)
-python scripts/train.py --config configs/fedlora_squad_nq.json --stage c2_adapter
+# Train C2 adapter (TriviaQA)
+python scripts/train.py --config configs/fedlora_squad_triviaqa.json --stage c2_adapter
 
 # Train C3 adapter (SciQ)
 python scripts/train.py --config configs/c3_experiment.json --stage c3_adapter
@@ -48,33 +48,33 @@ python scripts/train.py --config configs/c3_experiment.json --stage c3_adapter
 ### Override base model
 ```bash
 # Use a different model
-python scripts/train.py --config configs/fedlora_squad_nq.json --bm meta-llama/Llama-3.2-1B --stage c1_adapter
+python scripts/train.py --config configs/fedlora_squad_triviaqa.json --bm meta-llama/Llama-3.2-1B --stage c1_adapter
 ```
 
 ### Aggregate adapters into Universal Model
 ```bash
 # Create UM from C1 + C2
-python scripts/train.py --config configs/fedlora_squad_nq.json --stage aggregate --adapters c1,c2
+python scripts/train.py --config configs/fedlora_squad_triviaqa.json --stage aggregate --adapters c1,c2
 
 # Create UM v2 from C1 + C2 + C3
-python scripts/train.py --config configs/fedlora_squad_nq.json --stage aggregate --adapters c1,c2,c3 --output-name universal_v2
+python scripts/train.py --config configs/fedlora_squad_triviaqa.json --stage aggregate --adapters c1,c2,c3 --output-name universal_v2
 ```
 
 ### Evaluate models
 ```bash
 # Evaluate baseline (no adapter)
-python scripts/train.py --config configs/fedlora_squad_nq.json --stage baseline
+python scripts/train.py --config configs/fedlora_squad_triviaqa.json --stage baseline
 
 # Evaluate Universal Model on specific dataset
-python scripts/train.py --config configs/fedlora_squad_nq.json --stage evaluate --model universal --dataset sciq
+python scripts/train.py --config configs/fedlora_squad_triviaqa.json --stage evaluate --model universal --dataset sciq
 
 # Evaluate with custom adapter path
-python scripts/train.py --config configs/fedlora_squad_nq.json --stage evaluate --adapter-path outputs/my_adapter --model custom
+python scripts/train.py --config configs/fedlora_squad_triviaqa.json --stage evaluate --adapter-path outputs/my_adapter --model custom
 ```
 
 ### Run full pipeline
 ```bash
-python scripts/train.py --config configs/fedlora_squad_nq.json --stage all
+python scripts/train.py --config configs/fedlora_squad_triviaqa.json --stage all
 ```
 
 ---
@@ -95,19 +95,19 @@ To fill the comparison table:
 
 ```bash
 # 1. Train C1 and C2 adapters
-python scripts/train.py --config configs/fedlora_squad_nq.json --stage c1_adapter
-python scripts/train.py --config configs/fedlora_squad_nq.json --stage c2_adapter
+python scripts/train.py --config configs/fedlora_squad_triviaqa.json --stage c1_adapter
+python scripts/train.py --config configs/fedlora_squad_triviaqa.json --stage c2_adapter
 
 # 2. Create Universal Model (C1+C2)
-python scripts/train.py --config configs/fedlora_squad_nq.json --stage aggregate --adapters c1,c2
+python scripts/train.py --config configs/fedlora_squad_triviaqa.json --stage aggregate --adapters c1,c2
 
 # 3. Run C3 experiments
 python scripts/run_c3_experiments.py \
     --config configs/c3_experiment.json \
     --output-dir outputs/c3_experiments \
-    --um-adapter outputs/fedlora_squad_nq/universal_adapter \
-    --c1-adapter outputs/fedlora_squad_nq/c1_adapter \
-    --c2-adapter outputs/fedlora_squad_nq/c2_adapter
+    --um-adapter outputs/fedlora_squad_triviaqa/universal_adapter \
+    --c1-adapter outputs/fedlora_squad_triviaqa/c1_adapter \
+    --c2-adapter outputs/fedlora_squad_triviaqa/c2_adapter
 ```
 
 Results saved to: `outputs/c3_experiments/comparison_table.json`
@@ -123,7 +123,7 @@ Results saved to: `outputs/c3_experiments/comparison_table.json`
 │   ├── run_c3_experiments.py    # C3 comparison experiments
 │   └── smoke_test.py            # Verify setup
 ├── configs/
-│   ├── fedlora_squad_nq.json    # C1 + C2 config
+│   ├── fedlora_squad_triviaqa.json    # C1 + C2 config
 │   └── c3_experiment.json       # C3 experiment config
 ├── src/
 │   ├── model.py                 # Model loading, LoRA setup
@@ -149,13 +149,13 @@ Adapters are defined in the config file:
 {
     "clients": {
         "c1": {"dataset": "squad_v2", "num_samples": 10000},
-        "c2": {"dataset": "natural_questions", "num_samples": 10000},
+        "c2": {"dataset": "triviaqa", "num_samples": 10000},
         "c3": {"dataset": "sciq", "num_samples": 5000}
     }
 }
 ```
 
-Available datasets: `squad_v2`, `natural_questions`, `sciq`
+Available datasets: `squad_v2`, `triviaqa`, `natural_questions`, `sciq`
 
 ---
 

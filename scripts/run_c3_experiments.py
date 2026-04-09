@@ -302,7 +302,7 @@ def print_comparison_table(results: dict):
 
 def main():
     parser = argparse.ArgumentParser(description="Run C3 experiments")
-    parser.add_argument("--config", type=str, default="configs/fedlora_squad_nq.json")
+    parser.add_argument("--config", type=str, default="configs/fedlora_squad_triviaqa.json")
     parser.add_argument("--output-dir", type=str, default="outputs/c3_experiments")
     parser.add_argument("--um-adapter", type=str, required=True,
                         help="Path to Universal Model adapter (from C1+C2 training)")

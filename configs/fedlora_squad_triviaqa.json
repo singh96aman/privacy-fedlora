@@ -1,5 +1,5 @@
 {
-    "experiment_name": "fedlora_squad_nq",
+    "experiment_name": "fedlora_squad_triviaqa",
     "seed": 42,
 
     "model": {
