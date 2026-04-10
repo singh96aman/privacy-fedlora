@@ -205,8 +205,17 @@ def compute_bertscore(
     """
     try:
         from bert_score import score as bert_score
+        # Filter out empty strings - BERTScore can't handle them
+        filtered = [(p, r) for p, r in zip(predictions, references) if p.strip() and r.strip()]
+        if not filtered:
+            return {
+                "bertscore_precision": 0.0,
+                "bertscore_recall": 0.0,
+                "bertscore_f1": 0.0
+            }
+        filtered_preds, filtered_refs = zip(*filtered)
         P, R, F1 = bert_score(
-            predictions, references,
+            list(filtered_preds), list(filtered_refs),
             lang="en",
             device=device,
             verbose=False
