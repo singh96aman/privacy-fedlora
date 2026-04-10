@@ -16,7 +16,7 @@ from pathlib import Path
 
 # Load environment variables from .env
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
