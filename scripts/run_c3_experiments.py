@@ -28,7 +28,7 @@ from src.data import (
 )
 from src.evaluator import evaluate_qa
 from src.trainer import train_lora
-from src.kd_trainer import train_with_dual_teacher_kd
+from src.kd_trainer import train_with_confidence_weighted_kd
 from src.aggregator import fedavg_lora, load_adapter_weights, save_aggregated_adapter
 
 
@@ -178,25 +178,18 @@ def experiment_bm_c3(config: dict, output_dir: Path):
 
 
 def experiment_bm_c3_kd(config: dict, output_dir: Path, um_adapter_path: str):
-    """Experiment 4: BM + C3 with dual-teacher KD from UM."""
+    """Experiment 4: BM + C3 with confidence-weighted KD from UM."""
     print("\n" + "=" * 60)
-    print("EXPERIMENT 4: BM + (C3 w UM KD)")
+    print("EXPERIMENT 4: BM + (C3 w UM KD) - Confidence Weighted")
     print("=" * 60)
 
-    # Load base model (teacher 1)
-    base_teacher, tokenizer = load_base_model(
+    # Load universal teacher (UM only - no base teacher)
+    teacher, tokenizer = load_base_model(
         model_name=config["model"]["name"],
         dtype=config["model"].get("dtype", "bfloat16"),
         gradient_checkpointing=False
     )
-
-    # Load universal teacher (teacher 2)
-    universal_teacher, _ = load_base_model(
-        model_name=config["model"]["name"],
-        dtype=config["model"].get("dtype", "bfloat16"),
-        gradient_checkpointing=False
-    )
-    universal_teacher = load_adapter(universal_teacher, um_adapter_path)
+    teacher = load_adapter(teacher, um_adapter_path)
 
     # Create student (fresh LoRA on base)
     student, _ = load_base_model(
@@ -213,10 +206,9 @@ def experiment_bm_c3_kd(config: dict, output_dir: Path, um_adapter_path: str):
     batch_size = config["training"].get("batch_size", 4)
     train_loader = create_dataloader(train_dataset, batch_size=batch_size)
 
-    # Train with dual-teacher KD
-    train_metrics = train_with_dual_teacher_kd(
-        student, base_teacher, universal_teacher,
-        train_loader, config
+    # Train with confidence-weighted KD (single teacher: UM)
+    train_metrics = train_with_confidence_weighted_kd(
+        student, teacher, train_loader, config
     )
 
     # Save adapter
@@ -231,11 +223,14 @@ def experiment_bm_c3_kd(config: dict, output_dir: Path, um_adapter_path: str):
         compute_all_metrics=True
     )
     results["train_loss"] = train_metrics["train_loss"]
+    results["avg_confidence"] = train_metrics["avg_confidence"]
 
     save_results(results, output_dir / "bm_c3_kd.json")
-    print(f"BM+C3(KD) Results: F1={results['f1']:.4f}, EM={results['exact_match']:.4f}")
+    print(f"BM+C3(KD) Results: F1={results['f1']:.4f}, "
+          f"EM={results['exact_match']:.4f}, "
+          f"Avg Confidence={results['avg_confidence']:.3f}")
 
-    del student, base_teacher, universal_teacher
+    del student, teacher
     torch.cuda.empty_cache()
     return results, str(adapter_path)
 
