@@ -26,7 +26,7 @@ from .trainer import train_lora, evaluate_loss
 from .evaluator import (
     compute_f1,
     compute_exact_match,
-    evaluate_qa,
+    evaluate,
     generate_answer,
     get_loss_distribution
 )
@@ -79,7 +79,7 @@ __all__ = [
     # Evaluation
     "compute_f1",
     "compute_exact_match",
-    "evaluate_qa",
+    "evaluate",
     "generate_answer",
     "get_loss_distribution",
     # Aggregation

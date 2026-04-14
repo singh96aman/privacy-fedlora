@@ -1,4 +1,4 @@
-"""Dataset loading and preprocessing for QA tasks."""
+"""Dataset loading and preprocessing."""
 
 from typing import Dict, List, Optional, Tuple
 from datasets import load_dataset, Dataset
@@ -247,7 +247,11 @@ def preprocess_dataset(
         "squad": format_squad_example,
         "nq": format_nq_example,
         "triviaqa": format_triviaqa_example,
-        "sciq": format_sciq_example
+        "sciq": format_sciq_example,
+        "cnn_dailymail": format_cnn_example,
+        "xsum": format_xsum_example,
+        "samsum": format_samsum_example,
+        "billsum": format_billsum_example
     }
     format_fn = format_fns.get(dataset_type)
     if format_fn is None:
@@ -318,6 +322,22 @@ def get_client_data(
         train_data = load_sciq("train", num_samples)
         eval_data = load_sciq("validation", min(1000, num_samples // 10))
         dataset_type = "sciq"
+    elif dataset_name == "cnn_dailymail":
+        train_data = load_cnn_dailymail("train", num_samples)
+        eval_data = load_cnn_dailymail("validation", min(1000, num_samples // 10))
+        dataset_type = "cnn_dailymail"
+    elif dataset_name == "xsum":
+        train_data = load_xsum("train", num_samples)
+        eval_data = load_xsum("validation", min(1000, num_samples // 10))
+        dataset_type = "xsum"
+    elif dataset_name == "billsum":
+        train_data = load_billsum("train", num_samples)
+        eval_data = load_billsum("test", min(1000, num_samples // 10))
+        dataset_type = "billsum"
+    elif dataset_name == "samsum":
+        train_data = load_samsum("train", num_samples)
+        eval_data = load_samsum("test", min(1000, num_samples // 10))
+        dataset_type = "samsum"
     else:
         raise ValueError(f"Unknown dataset: {dataset_name}")
 
@@ -327,3 +347,49 @@ def get_client_data(
     eval_dataset = preprocess_dataset(eval_data, tokenizer, dataset_type, max_length)
 
     return train_dataset, eval_dataset
+
+
+def load_cnn_dailymail(split="train", num_samples=None):
+   from datasets import load_dataset
+   dataset = load_dataset("cnn_dailymail", "3.0.0", split=split)
+   if num_samples:
+       dataset = dataset.select(range(min(num_samples, len(dataset))))
+   return dataset
+
+def load_xsum(split="train", num_samples=None):
+   from datasets import load_dataset
+   dataset = load_dataset("EdinburghNLP/xsum", split=split)
+   if num_samples:
+       dataset = dataset.select(range(min(num_samples, len(dataset))))
+   return dataset
+
+def load_samsum(split="train", num_samples=None):
+   from datasets import load_dataset
+   dataset = load_dataset("Samsung/samsum", split=split)
+   if num_samples:
+       dataset = dataset.select(range(min(num_samples, len(dataset))))
+   return dataset
+
+def format_cnn_example(example):
+   prompt = f"Summarize the following article in a few sentences.\n\nArticle: {example['article'][:2000]}\n\nSummary:"
+   return {"prompt": prompt, "answer": example["highlights"], "full_text": f"{prompt} {example['highlights']}"}
+
+def format_xsum_example(example):
+   prompt = f"Write a one-sentence summary of the following article.\n\nArticle: {example['document'][:2000]}\n\nSummary:"
+   return {"prompt": prompt, "answer": example["summary"], "full_text": f"{prompt} {example['summary']}"}
+
+def format_samsum_example(example):
+   prompt = f"Summarize the following dialogue.\n\nDialogue: {example['dialogue']}\n\nSummary:"
+   return {"prompt": prompt, "answer": example["summary"], "full_text": f"{prompt} {example['summary']}"}
+
+
+def load_billsum(split="train", num_samples=None):
+   from datasets import load_dataset
+   dataset = load_dataset("billsum", split=split)
+   if num_samples:
+       dataset = dataset.select(range(min(num_samples, len(dataset))))
+   return dataset
+
+def format_billsum_example(example):
+   prompt = f"Summarize the following bill in a few sentences.\n\nBill: {example['text'][:2000]}\n\nSummary:"
+   return {"prompt": prompt, "answer": example["summary"], "full_text": f"{prompt} {example['summary']}"}

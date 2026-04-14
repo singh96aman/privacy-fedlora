@@ -1,0 +1,67 @@
+{
+  "experiment_name": "fedlora_summarization",
+  "seed": 42,
+  "model": {
+    "name": "meta-llama/Llama-3.2-3B",
+    "dtype": "bfloat16",
+    "gradient_checkpointing": true
+  },
+  "lora": {
+    "r": 16,
+    "lora_alpha": 32,
+    "target_modules": [
+      "q_proj",
+      "v_proj",
+      "k_proj",
+      "o_proj"
+    ],
+    "lora_dropout": 0.05,
+    "bias": "none",
+    "task_type": "CAUSAL_LM"
+  },
+  "clients": {
+    "c1": {
+      "dataset": "cnn_dailymail",
+      "num_samples": 5000
+    },
+    "c2": {
+      "dataset": "xsum",
+      "num_samples": 5000
+    }
+  },
+  "c3_domains": [
+    {
+      "name": "billsum",
+      "dataset": "billsum",
+      "train_samples": 50,
+      "eval_samples": 150
+    }
+  ],
+  "training": {
+    "num_train_epochs": 3,
+    "batch_size": 4,
+    "gradient_accumulation_steps": 8,
+    "learning_rate": 0.0002,
+    "max_seq_length": 512
+  },
+  "knowledge_distillation": {
+    "temperature": 2.0,
+    "alpha": 0.5,
+    "alpha_base": 0.25,
+    "alpha_universal": 0.25
+  },
+  "evaluation": {
+    "metrics": [
+      "f1",
+      "rouge",
+      "bleu",
+      "contains",
+      "perplexity"
+    ],
+    "eval_batch_size": 8
+  },
+  "logging": {
+    "output_dir": "outputs",
+    "checkpoint_every": 1
+  }
+}

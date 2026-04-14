@@ -1,4 +1,4 @@
-"""Evaluation utilities for QA tasks."""
+"""Evaluation utilities for text generation tasks."""
 
 import re
 import string
@@ -274,14 +274,14 @@ def generate_answer(
     return answer
 
 
-def evaluate_qa(
+def evaluate(
     model,
     tokenizer: PreTrainedTokenizer,
     eval_examples: List[Dict],
     max_samples: int = 500,
     compute_all_metrics: bool = False
 ) -> Dict[str, float]:
-    """Evaluate model on QA examples.
+    """Evaluate model on text generation examples.
 
     Args:
         model: Model to evaluate
@@ -304,7 +304,7 @@ def evaluate_qa(
 
     samples = eval_examples[:max_samples]
 
-    for example in tqdm(samples, desc="Evaluating QA"):
+    for example in tqdm(samples, desc="Evaluating"):
         prompt = example["prompt"]
         ground_truth = example["answer"]
 

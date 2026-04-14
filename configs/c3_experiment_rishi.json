@@ -1,0 +1,66 @@
+{
+  "experiment_name": "c3_sciq_experiments",
+  "seed": 42,
+  "model": {
+    "name": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+    "dtype": "bfloat16",
+    "gradient_checkpointing": true
+  },
+  "lora": {
+    "r": 16,
+    "lora_alpha": 32,
+    "target_modules": [
+      "q_proj",
+      "v_proj",
+      "k_proj",
+      "o_proj"
+    ],
+    "lora_dropout": 0.05,
+    "bias": "none",
+    "task_type": "CAUSAL_LM"
+  },
+  "clients": {
+    "c1": {
+      "dataset": "squad_v2",
+      "num_samples": 10000
+    },
+    "c2": {
+      "dataset": "natural_questions",
+      "num_samples": 10000
+    },
+    "c3": {
+      "dataset": "sciq",
+      "num_samples": 5000
+    }
+  },
+  "training": {
+    "local_epochs": 3,
+    "batch_size": 4,
+    "gradient_accumulation_steps": 8,
+    "learning_rate": 0.0002,
+    "max_seq_length": 512
+  },
+  "knowledge_distillation": {
+    "temperature": 2.0,
+    "alpha": 0.5,
+    "alpha_base": 0.25,
+    "alpha_universal": 0.25
+  },
+  "evaluation": {
+    "metrics": [
+      "f1",
+      "exact_match",
+      "contains",
+      "perplexity",
+      "bertscore",
+      "bleu",
+      "rouge"
+    ],
+    "eval_samples": 500,
+    "eval_batch_size": 8
+  },
+  "logging": {
+    "output_dir": "outputs",
+    "checkpoint_every": 1
+  }
+}

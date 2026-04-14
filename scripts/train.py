@@ -150,7 +150,7 @@ def evaluate_model(
         load_squad, load_sciq,
         format_squad_example, format_sciq_example
     )
-    from src.evaluator import evaluate_qa
+    from src.evaluator import evaluate
 
     print(f"\n{'='*60}")
     print(f"Evaluating: {model_type}")
@@ -194,7 +194,7 @@ def evaluate_model(
         raw_data = loader_fn(split, eval_samples)
         examples = [format_fn(ex) for ex in raw_data]
 
-        ds_results = evaluate_qa(
+        ds_results = evaluate(
             model, tokenizer, examples,
             max_samples=eval_samples,
             compute_all_metrics=True

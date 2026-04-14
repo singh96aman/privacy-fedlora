@@ -26,7 +26,7 @@ from src.model import load_base_model, setup_lora, load_adapter, save_adapter
 from src.data import (
     load_sciq, format_sciq_example, preprocess_dataset, create_dataloader
 )
-from src.evaluator import evaluate_qa
+from src.evaluator import evaluate
 from src.trainer import train_lora
 from src.kd_trainer import train_with_confidence_weighted_kd
 from src.aggregator import fedavg_lora, load_adapter_weights, save_aggregated_adapter
@@ -55,17 +55,29 @@ def save_results(results: dict, path: str):
 
 
 def get_c3_data(tokenizer, config, num_train=5000, num_eval=500):
-    """Load and preprocess SciQ (C3) data."""
-    train_data = load_sciq("train", num_train)
-    eval_data = load_sciq("validation", num_eval)
+    """Load and preprocess C3 data from config."""
+    from src.data import (load_sciq, format_sciq_example,
+        load_billsum, format_billsum_example,
+        load_samsum, format_samsum_example)
+
+    c3_domain = config["c3_domains"][0]
+    domain_name = c3_domain["dataset"]
+
+    registry = {
+        "sciq": (load_sciq, "validation", format_sciq_example),
+        "billsum": (load_billsum, "test", format_billsum_example),
+        "samsum": (load_samsum, "test", format_samsum_example),
+    }
+
+    load_fn, eval_split, format_fn = registry[domain_name]
+    print(f"\n>>> C3 Domain: {domain_name} (train: train, eval: {eval_split})")
+    train_data = load_fn("train", num_train)
+    eval_data = load_fn(eval_split, num_eval)
 
     max_length = config["training"].get("max_seq_length", 512)
-
-    train_dataset = preprocess_dataset(train_data, tokenizer, "sciq", max_length)
-    eval_dataset = preprocess_dataset(eval_data, tokenizer, "sciq", max_length)
-
-    # Also get raw examples for QA evaluation
-    eval_examples = [format_sciq_example(ex) for ex in eval_data]
+    train_dataset = preprocess_dataset(train_data, tokenizer, domain_name, max_length)
+    eval_dataset = preprocess_dataset(eval_data, tokenizer, domain_name, max_length)
+    eval_examples = [format_fn(ex) for ex in eval_data]
 
     return train_dataset, eval_dataset, eval_examples
 
@@ -84,7 +96,7 @@ def experiment_bm(config: dict, output_dir: Path):
 
     _, _, eval_examples = get_c3_data(tokenizer, config)
 
-    results = evaluate_qa(
+    results = evaluate(
         model, tokenizer, eval_examples,
         max_samples=500,
         compute_all_metrics=True
@@ -116,7 +128,7 @@ def experiment_um(config: dict, output_dir: Path, um_adapter_path: str):
 
     _, _, eval_examples = get_c3_data(tokenizer, config)
 
-    results = evaluate_qa(
+    results = evaluate(
         model, tokenizer, eval_examples,
         max_samples=500,
         compute_all_metrics=True
@@ -162,7 +174,7 @@ def experiment_bm_c3(config: dict, output_dir: Path):
 
     # Evaluate
     model.eval()
-    results = evaluate_qa(
+    results = evaluate(
         model, tokenizer, eval_examples,
         max_samples=500,
         compute_all_metrics=True
@@ -217,7 +229,7 @@ def experiment_bm_c3_kd(config: dict, output_dir: Path, um_adapter_path: str):
 
     # Evaluate
     student.eval()
-    results = evaluate_qa(
+    results = evaluate(
         student, tokenizer, eval_examples,
         max_samples=500,
         compute_all_metrics=True
@@ -264,7 +276,7 @@ def experiment_um_v2(config: dict, output_dir: Path, c1_path: str, c2_path: str,
 
     _, _, eval_examples = get_c3_data(tokenizer, config)
 
-    results = evaluate_qa(
+    results = evaluate(
         model, tokenizer, eval_examples,
         max_samples=500,
         compute_all_metrics=True
@@ -281,7 +293,7 @@ def experiment_um_v2(config: dict, output_dir: Path, c1_path: str, c2_path: str,
 def print_comparison_table(results: dict):
     """Print comparison table."""
     print("\n" + "=" * 100)
-    print("COMPARISON TABLE (C3 = SciQ)")
+    print("COMPARISON TABLE (C3)")
     print("=" * 100)
 
     headers = ["Model", "F1", "EM", "Contains", "PPL", "BERTScore", "BLEU", "ROUGE"]
